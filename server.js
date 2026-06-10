@@ -519,16 +519,14 @@ app.post(
   "/pedidos/:idPedido/gerar-nota",
   async (req, res) => {
     try {
-
       const { idPedido } = req.params;
 
-      const pedidoResult =
-        await docClient.send(
-          new GetCommand({
-            TableName: TABLE_NAME,
-            Key: { idPedido }
-          })
-        );
+      const pedidoResult = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAME,
+          Key: { idPedido }
+        })
+      );
 
       if (!pedidoResult.Item) {
         return res.status(404).json({
@@ -536,24 +534,30 @@ app.post(
         });
       }
 
-      const pedido =
-        pedidoResult.Item;
+      const pedido = pedidoResult.Item;
 
-      const pdfBuffer =
-        await gerarNotaFiscal(
-          pedido
-        );
+      // ========================================================
+      // O PULO DO GATO: Injetamos o status ENVIADO para o PDF
+      // ========================================================
+      const pedidoComStatusAtualizado = {
+        ...pedido,
+        status: "ENVIADO"
+      };
 
-      const fileKey =
-        `notas/${idPedido}/nota-fiscal.pdf`;
+      // Passamos o novo objeto com o status corrigido para o gerador
+      const pdfBuffer = await gerarNotaFiscal(
+        pedidoComStatusAtualizado
+      );
+      // ========================================================
+
+      const fileKey = `notas/${idPedido}/nota-fiscal.pdf`;
 
       await s3Client.send(
         new PutObjectCommand({
           Bucket: BUCKET_NAME,
           Key: fileKey,
           Body: pdfBuffer,
-          ContentType:
-            "application/pdf"
+          ContentType: "application/pdf"
         })
       );
 
@@ -561,8 +565,7 @@ app.post(
         new UpdateCommand({
           TableName: TABLE_NAME,
           Key: { idPedido },
-          UpdateExpression:
-            "SET referenciaNota = :r",
+          UpdateExpression: "SET referenciaNota = :r",
           ExpressionAttributeValues: {
             ":r": fileKey
           }
@@ -570,8 +573,7 @@ app.post(
       );
 
       return res.json({
-        message:
-          "Nota fiscal gerada",
+        message: "Nota fiscal gerada",
         arquivo: fileKey
       });
 
