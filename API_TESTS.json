@@ -1,0 +1,113 @@
+{
+  "info": {
+    "name": "API Serverless - Testes",
+    "description": "Coleção de testes para a API de Pedidos",
+    "version": "1.0.0"
+  },
+  "tests": [
+    {
+      "id": "1-criar-pedido",
+      "name": "Criar Pedido",
+      "method": "POST",
+      "url": "http://localhost:3000/pedidos",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "nomeCliente": "João Silva",
+        "emailCliente": "joao@example.com",
+        "valor": 150.50
+      },
+      "expectedStatus": 201,
+      "notes": "Cria um novo pedido com status RECEBIMENTO. Anote o idPedido para os próximos testes."
+    },
+    {
+      "id": "2-listar-pedidos",
+      "name": "Listar Todos os Pedidos",
+      "method": "GET",
+      "url": "http://localhost:3000/pedidos",
+      "expectedStatus": 200,
+      "notes": "Lista todos os pedidos criados no DynamoDB"
+    },
+    {
+      "id": "3-consultar-pedido",
+      "name": "Consultar Pedido Específico",
+      "method": "GET",
+      "url": "http://localhost:3000/pedidos/PEDIDO_ID_AQUI",
+      "expectedStatus": 200,
+      "notes": "Substitua PEDIDO_ID_AQUI pelo idPedido retornado na criação"
+    },
+    {
+      "id": "4-listar-buckets",
+      "name": "Listar Buckets S3",
+      "method": "GET",
+      "url": "http://localhost:3000/buckets",
+      "expectedStatus": 200,
+      "notes": "Lista todos os buckets S3 disponíveis na conta"
+    },
+    {
+      "id": "5-listar-arquivos",
+      "name": "Listar Arquivos no S3",
+      "method": "GET",
+      "url": "http://localhost:3000/s3/arquivos",
+      "expectedStatus": 200,
+      "notes": "Lista todos os arquivos no bucket configurado no .env"
+    },
+    {
+      "id": "6-upload-nota-fiscal",
+      "name": "Upload de Nota Fiscal",
+      "method": "POST",
+      "url": "http://localhost:3000/pedidos/PEDIDO_ID_AQUI/nota-fiscal",
+      "headers": {
+        "Content-Type": "multipart/form-data"
+      },
+      "body": {
+        "arquivo": "arquivo binário .pdf"
+      },
+      "expectedStatus": 200,
+      "notes": "Faz upload de um PDF e armazena no S3 com metadados do pedido. Substitua PEDIDO_ID_AQUI.",
+      "curl": "curl -X POST http://localhost:3000/pedidos/PEDIDO_ID_AQUI/nota-fiscal -F 'arquivo=@nota-fiscal.pdf'"
+    },
+    {
+      "id": "7-consultar-nota-fiscal",
+      "name": "Consultar Nota Fiscal no S3",
+      "method": "GET",
+      "url": "http://localhost:3000/pedidos/PEDIDO_ID_AQUI/nota-fiscal?arquivo=notas/ARQUIVO_AQUI.pdf",
+      "expectedStatus": 200,
+      "notes": "Consulta um arquivo PDF armazenado no S3. Substitua os placeholders pelos valores reais."
+    },
+    {
+      "id": "8-listar-arquivos-pedido",
+      "name": "Listar Arquivos de um Pedido",
+      "method": "GET",
+      "url": "http://localhost:3000/pedidos/PEDIDO_ID_AQUI/arquivos",
+      "expectedStatus": 200,
+      "notes": "Lista todos os arquivos de um pedido específico verificando os metadados. Substitua PEDIDO_ID_AQUI."
+    }
+  ],
+  "curl-examples": {
+    "criar-pedido": "curl -X POST http://localhost:3000/pedidos -H 'Content-Type: application/json' -d '{\"nomeCliente\":\"João\",\"emailCliente\":\"joao@example.com\",\"valor\":150.50}'",
+    "listar-pedidos": "curl -X GET http://localhost:3000/pedidos",
+    "consultar-pedido": "curl -X GET http://localhost:3000/pedidos/ID_DO_PEDIDO",
+    "upload-nota": "curl -X POST http://localhost:3000/pedidos/ID_DO_PEDIDO/nota-fiscal -F 'arquivo=@C:\\caminho\\nota-fiscal.pdf'",
+    "consultar-nota": "curl -X GET 'http://localhost:3000/pedidos/ID_DO_PEDIDO/nota-fiscal?arquivo=notas/ID_DO_PEDIDO-timestamp.pdf'",
+    "listar-arquivos": "curl -X GET http://localhost:3000/pedidos/ID_DO_PEDIDO/arquivos",
+    "listar-buckets": "curl -X GET http://localhost:3000/buckets",
+    "listar-s3": "curl -X GET http://localhost:3000/s3/arquivos"
+  },
+  "powerShell-examples": {
+    "criar-pedido": "$body = @{\n  nomeCliente = 'João'\n  emailCliente = 'joao@example.com'\n  valor = 150.50\n} | ConvertTo-Json\n$response = Invoke-RestMethod -Uri 'http://localhost:3000/pedidos' -Method POST -Headers @{'Content-Type'='application/json'} -Body $body\n$response | ConvertTo-Json",
+    "listar-pedidos": "$response = Invoke-RestMethod -Uri 'http://localhost:3000/pedidos' -Method GET\n$response | ConvertTo-Json",
+    "upload-nota": "$idPedido = 'SEU_ID_AQUI'\n$filePath = 'C:\\caminho\\nota-fiscal.pdf'\n$form = @{\n  arquivo = Get-Item -Path $filePath\n}\n$response = Invoke-RestMethod -Uri \"http://localhost:3000/pedidos/$idPedido/nota-fiscal\" -Method POST -Form $form\n$response | ConvertTo-Json"
+  },
+  "fluxo-completo": {
+    "passo1": "Criar um pedido com POST /pedidos",
+    "passo2": "Aguardar alguns segundos para o DynamoDB Stream acionar a lambda-execucao",
+    "passo3": "Verificar o CloudWatch para ver o log de envio de e-mail",
+    "passo4": "Aguardar 5 minutos ou disparar manualmente a lambda-envio",
+    "passo5": "Fazer upload de um PDF em POST /pedidos/{id}/nota-fiscal",
+    "passo6": "Verificar os logs da lambda-confirmacao no CloudWatch",
+    "passo7": "Confirmar que o status mudou para ENVIADO no DynamoDB",
+    "passo8": "Receber os 3 e-mails: RECEBIMENTO, PREPARACAO e ENVIADO"
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "description": "Variáveis de ambiente para as Lambdas",
+  "lambdas": {
+    "lambda-execucao": {
+      "environment": {
+        "EMAIL_REMETENTE": "seuemail@verificado.com",
+        "DYNAMODB_TABLE_NAME": "pedidos"
+      },
+      "permissions": [
+        "AmazonSESFullAccess",
+        "AmazonDynamoDBStreamReadAccess"
+      ],
+      "trigger": {
+        "type": "DynamoDB Stream",
+        "table": "pedidos",
+        "startingPosition": "Latest",
+        "batchSize": 1
+      }
+    },
+    "lambda-envio": {
+      "environment": {
+        "DYNAMODB_TABLE_NAME": "pedidos",
+        "API_GATEWAY_URL": "https://XXXXXXXX.execute-api.us-east-1.amazonaws.com/prod/preparacao"
+      },
+      "permissions": [
+        "AmazonDynamoDBReadOnlyAccess"
+      ],
+      "trigger": {
+        "type": "EventBridge",
+        "schedule": "rate(5 minutes)",
+        "name": "verificacao-pedidos"
+      },
+      "notes": [
+        "Substitua API_GATEWAY_URL pela URL real do API Gateway após criá-lo"
+      ]
+    },
+    "lambda-preparacao": {
+      "environment": {
+        "DYNAMODB_TABLE_NAME": "pedidos"
+      },
+      "permissions": [
+        "AmazonDynamoDBFullAccess"
+      ],
+      "trigger": {
+        "type": "API Gateway",
+        "method": "POST",
+        "resource": "/preparacao"
+      }
+    },
+    "lambda-confirmacao": {
+      "environment": {
+        "DYNAMODB_TABLE_NAME": "pedidos"
+      },
+      "permissions": [
+        "AmazonS3ReadOnlyAccess",
+        "AmazonDynamoDBFullAccess"
+      ],
+      "trigger": {
+        "type": "S3",
+        "bucket": "pedidos-nf-bucket-SEUNOME",
+        "events": ["s3:ObjectCreated:*"],
+        "filter": {
+          "suffix": ".pdf"
+        }
+      }
+    }
+  },
+  "aws-setup": {
+    "region": "us-east-1",
+    "runtime": "nodejs20.x",
+    "timeout": 60,
+    "memory": 256,
+    "architectures": ["x86_64"]
+  },
+  "resources": {
+    "dynamodb": {
+      "table": "pedidos",
+      "partitionKey": {
+        "name": "idPedido",
+        "type": "S"
+      },
+      "streamSpecification": {
+        "streamEnabled": true,
+        "streamViewType": "NEW_AND_OLD_IMAGES"
+      }
+    },
+    "s3": {
+      "bucket": "pedidos-nf-bucket-SEUNOME",
+      "region": "us-east-1"
+    },
+    "ses": {
+      "verifiedEmails": [
+        "seuemail@verificado.com"
+      ]
+    },
+    "apigateway": {
+      "name": "api-pedidos",
+      "stage": "prod",
+      "resources": [
+        {
+          "path": "/preparacao",
+          "method": "POST",
+          "integration": "lambda-preparacao"
+        }
+      ]
+    }
+  }
+}
