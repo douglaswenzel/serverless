@@ -1,36 +1,32 @@
-﻿require('dotenv').config();
+const { randomUUID } = require('crypto');
+require('dotenv').config(); 
 const express = require('express');
 const multer = require('multer');
 const swaggerUi = require('swagger-ui-express');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-const { S3Client, PutObjectCommand, GetObjectCommand, ListBucketsCommand, ListObjectsV2Command, HeadObjectCommand } = require('@aws-sdk/client-s3');
-const { randomUUID } = require('crypto');
+const { 
+    DynamoDBDocumentClient, 
+    PutCommand, 
+    GetCommand, 
+    ScanCommand, 
+    UpdateCommand 
+} = require('@aws-sdk/lib-dynamodb');
+
+// 4. AWS SDK v3 - S3
+const { 
+    S3Client, 
+    PutObjectCommand, 
+    GetObjectCommand, 
+    ListBucketsCommand, 
+    ListObjectsV2Command, 
+    HeadObjectCommand 
+} = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { gerarNotaFiscal } = require('./services/pdfService');
-
-const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
-
-const dynamoClient = new DynamoDBClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    sessionToken: process.env.AWS_SESSION_TOKEN,
-  }
-});
-
+const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    sessionToken: process.env.AWS_SESSION_TOKEN,
-  }
-});
+const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
