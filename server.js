@@ -585,44 +585,38 @@ app.post(
   }
 );
 
-app.post(
-  '/pedidos/:idPedido/preparar',
-  async (req, res) => {
+app.post("/pedidos/:idPedido/preparar", async (req, res) => {
+  try {
+    const { idPedido } = req.params;
 
-    try {
+    // 1. Atualiza o status do pedido para PREPARACAO no DynamoDB
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { idPedido },
+        UpdateExpression: "SET #st = :novoStatus",
+        ExpressionAttributeNames: {
+          "#st": "status"
+        },
+        ExpressionAttributeValues: {
+          ":novoStatus": "PREPARACAO"
+        }
+      })
+    );
 
-      const { idPedido } = req.params;
+    console.log(`✓ Pedido ${idPedido} alterado para PREPARACAO.`);
 
-      await docClient.send(
-        new UpdateCommand({
-          TableName: TABLE_NAME,
-          Key: { idPedido },
-          UpdateExpression:
-            'SET #status = :status',
-          ExpressionAttributeNames: {
-            '#status': 'status'
-          },
-          ExpressionAttributeValues: {
-            ':status': 'PREPARACAO'
-          }
-        })
-      );
+    // 2. Retorna o sucesso para a Lambda
+    return res.json({
+      message: "Pedido em preparação com sucesso",
+      idPedido
+    });
 
-      res.json({
-        message:
-          'Pedido em preparação'
-      });
-
-    } catch (error) {
-
-      res.status(500).json({
-        error: error.message
-      });
-
-    }
-
+  } catch (error) {
+    console.error("Erro ao preparar pedido:", error);
+    res.status(500).json({ error: error.message });
   }
-);
+});
 
 app.post(
   '/pedidos/:idPedido/enviar',
