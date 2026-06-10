@@ -589,7 +589,6 @@ app.post("/pedidos/:idPedido/preparar", async (req, res) => {
   try {
     const { idPedido } = req.params;
 
-    // 1. Atualiza o status do pedido para PREPARACAO no DynamoDB
     await docClient.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
@@ -606,7 +605,6 @@ app.post("/pedidos/:idPedido/preparar", async (req, res) => {
 
     console.log(`✓ Pedido ${idPedido} alterado para PREPARACAO.`);
 
-    // 2. Retorna o sucesso para a Lambda
     return res.json({
       message: "Pedido em preparação com sucesso",
       idPedido
