@@ -17,52 +17,51 @@ O sistema segue uma arquitetura **event-driven (orientada a eventos)** com separ
 ---
 
 # 🏗️ Arquitetura do Sistema
-
-
+```
 CLIENTE
-│
-▼
+   |
+   v
 POST /pedidos
-│
-▼
+   |
+   v
 API EXPRESS (EC2)
-│
-│ cria pedido (RECEBIMENTO)
-▼
+   |
+   | cria pedido (RECEBIMENTO)
+   v
 DYNAMODB (Pedidos)
-│
-▼
+   |
+   v
 EVENTBRIDGE (Scheduler a cada 2 min)
-│
-▼
+   |
+   v
 LAMBDA ENVIO-FINAL
-│
-│ consulta pedidos em PREPARACAO
-│
-├── POST /pedidos/{id}/gerar-nota
-▼
-API EXPRESS (EC2)
-│
-│ gera PDF da nota fiscal
-▼
-S3 (Notas Fiscais)
-│
-▼
+   |
+   | consulta pedidos em PREPARACAO
+   |
+   +--> POST /pedidos/{id}/gerar-nota
+           |
+           v
+     API EXPRESS (EC2)
+           |
+           | gera PDF da nota fiscal
+           v
+        S3 (Notas Fiscais)
+           |
+           v
 LAMBDA CONFIRMACAO (S3 Trigger)
-│
-│ atualiza status → ENVIADO
-▼
+           |
+           | atualiza status → ENVIADO
+           v
 DYNAMODB STREAMS
-│
-▼
+           |
+           v
 LAMBDA EXECUCAO
-│
-│ envia e-mail ao cliente
-▼
+           |
+           | envia e-mail ao cliente
+           v
 CLIENTE FINAL
 
-
----
+```
 
 # 🎯 Objetivo do Sistema
 
