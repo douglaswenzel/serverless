@@ -40,7 +40,7 @@ const swaggerDocument = {
 
   servers: [
     {
-      url: `http://34.228.60.10:${process.env.PORT || 3000}`
+      url: `/`
     }
   ],
 
