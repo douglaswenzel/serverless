@@ -1,47 +1,29 @@
-const { randomUUID } = require('crypto');
-require('dotenv').config(); 
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const swaggerUi = require('swagger-ui-express');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { 
-    DynamoDBDocumentClient, 
-    PutCommand, 
-    GetCommand, 
-    ScanCommand, 
-    UpdateCommand 
-} = require('@aws-sdk/lib-dynamodb');
-
-// 4. AWS SDK v3 - S3
-const { 
-    S3Client, 
-    PutObjectCommand, 
-    GetObjectCommand, 
-    ListBucketsCommand, 
-    ListObjectsV2Command, 
-    HeadObjectCommand 
-} = require('@aws-sdk/client-s3');
+const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { S3Client, PutObjectCommand, GetObjectCommand, ListBucketsCommand, ListObjectsV2Command, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { randomUUID } = require('crypto');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { gerarNotaFiscal } = require('./services/pdfService');
-const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+
+const app = express();
+const upload = multer({ storage: multer.memoryStorage() });
+
+const dynamoClient = new DynamoDBClient({ 
+  region: process.env.AWS_REGION 
+});
+
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({ 
+  region: process.env.AWS_REGION 
+});
 
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
-
-console.log("===== AWS CONFIG =====");
-console.log("REGION:", process.env.AWS_REGION);
-console.log("TABLE:", process.env.DYNAMODB_TABLE_NAME);
-console.log("BUCKET:", process.env.S3_BUCKET_NAME);
-console.log(
-  "ACCESS_KEY:",
-  process.env.AWS_ACCESS_KEY_ID
-    ? "OK"
-    : "MISSING",
-);
-console.log("======================");
 
 app.use(express.json());
 
