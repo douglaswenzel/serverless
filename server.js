@@ -10,6 +10,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { gerarNotaFiscal } = require('./services/pdfService');
 
 const app = express();
+const cors = require('cors');
 const upload = multer({ storage: multer.memoryStorage() });
 
 const dynamoClient = new DynamoDBClient({ 
@@ -26,6 +27,7 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
 app.use(express.json());
+app.use(cors());
 
 const swaggerDocument = {
   openapi: '3.0.0',
