@@ -9,6 +9,18 @@ const { S3Client, PutObjectCommand, GetObjectCommand, ListBucketsCommand, ListOb
 const { randomUUID } = require('crypto');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { gerarNotaFiscal } = require('./services/pdfService');
+const {
+  LambdaClient,
+  GetFunctionCommand
+} = require("@aws-sdk/client-lambda");
+
+const {
+  EventBridgeClient,
+  DescribeRuleCommand
+} = require("@aws-sdk/client-eventbridge");
+
+const https = require("https");
+  
 
 const app = express();
 app.use(cors());
@@ -25,6 +37,105 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const s3Client = new S3Client({
   region: process.env.AWS_REGION
 });
+
+const lambdaClient =
+  new LambdaClient({
+    region: process.env.AWS_REGION
+  });
+
+const eventBridgeClient =
+  new EventBridgeClient({
+    region: process.env.AWS_REGION
+  });
+
+  async function checkLambda(functionName) {
+
+  try {
+
+    await lambdaClient.send(
+      new GetFunctionCommand({
+        FunctionName: functionName
+      })
+    );
+
+    return {
+      status: "UP"
+    };
+
+  } catch (error) {
+
+    return {
+      status: "DOWN",
+      error: error.message
+    };
+
+  }
+
+}
+
+async function checkEventBridge(ruleName) {
+
+  try {
+
+    await eventBridgeClient.send(
+      new DescribeRuleCommand({
+        Name: ruleName
+      })
+    );
+
+    return {
+      status: "UP"
+    };
+
+  } catch (error) {
+
+    return {
+      status: "DOWN",
+      error: error.message
+    };
+
+  }
+
+}
+
+function checkApiGateway(url) {
+
+  return new Promise((resolve) => {
+
+    try {
+
+      https.get(url, (res) => {
+
+        resolve({
+          status:
+            res.statusCode < 500
+              ? "UP"
+              : "DOWN",
+          httpStatus:
+            res.statusCode
+        });
+
+      }).on("error", (error) => {
+
+        resolve({
+          status: "DOWN",
+          error: error.message
+        });
+
+      });
+
+    } catch (error) {
+
+      resolve({
+        status: "DOWN",
+        error: error.message
+      });
+
+    }
+
+  });
+
+}
 
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
@@ -432,11 +543,43 @@ app.get('/pedidos/:idPedido/nota-fiscal', async (req, res) => {
 
 app.get('/pedidos', async (req, res) => {
   try {
-    const { Items } = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
-    return res.status(200).json({ total: Items.length, pedidos: Items });
+
+    const { status } = req.query;
+
+    const params = {
+      TableName: TABLE_NAME
+    };
+
+    if (status) {
+      params.FilterExpression = '#status = :status';
+      params.ExpressionAttributeNames = {
+        '#status': 'status'
+      };
+      params.ExpressionAttributeValues = {
+        ':status': status
+      };
+    }
+
+    const { Items = [] } =
+      await docClient.send(
+        new ScanCommand(params)
+      );
+
+    return res.status(200).json({
+      total: Items.length,
+      filtro: status || null,
+      pedidos: Items
+    });
+
   } catch (error) {
+
     console.error(error);
-    return res.status(500).json({ error: 'Erro ao listar pedidos', details: error.message });
+
+    return res.status(500).json({
+      error: 'Erro ao listar pedidos',
+      details: error.message
+    });
+
   }
 });
 
@@ -738,40 +881,154 @@ app.get('/dashboard', async (req, res) => {
 
 });
 
-app.get('/health', async (req, res) => {
+app.get("/health", async (req, res) => {
+
   try {
 
-    await docClient.send(
-      new ScanCommand({
-        TableName: TABLE_NAME,
-        Limit: 1
-      })
-    );
+    let dynamodbStatus = {
+      status: "UP"
+    };
 
-    await s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: BUCKET_NAME,
-        MaxKeys: 1
-      })
-    );
+    let s3Status = {
+      status: "UP"
+    };
 
-    res.json({
-      api: 'UP',
-      dynamodb: 'UP',
-      s3: 'UP',
-      table: TABLE_NAME,
-      bucket: BUCKET_NAME,
-      timestamp: new Date().toISOString()
-    });
+    try {
+
+      await docClient.send(
+        new ScanCommand({
+          TableName:
+            process.env.DYNAMODB_TABLE_NAME,
+          Limit: 1
+        })
+      );
+
+    } catch (error) {
+
+      dynamodbStatus = {
+        status: "DOWN",
+        error: error.message
+      };
+
+    }
+
+    try {
+
+      await s3.send(
+        new ListObjectsV2Command({
+          Bucket:
+            process.env.S3_BUCKET_NAME,
+          MaxKeys: 1
+        })
+      );
+
+    } catch (error) {
+
+      s3Status = {
+        status: "DOWN",
+        error: error.message
+      };
+
+    }
+
+    const [
+      lambdaPreparacao,
+      lambdaEnvio,
+      lambdaEnvioFinal,
+      lambdaConfirmacao,
+      eventBridge,
+      apiGateway
+    ] = await Promise.all([
+      checkLambda(
+        process.env.LAMBDA_PREPARACAO
+      ),
+
+      checkLambda(
+        process.env.LAMBDA_ENVIO
+      ),
+
+      checkLambda(
+        process.env.LAMBDA_ENVIO_FINAL
+      ),
+
+      checkLambda(
+        process.env.LAMBDA_CONFIRMACAO
+      ),
+
+      checkEventBridge(
+        process.env.EVENTBRIDGE_RULE
+      ),
+
+      checkApiGateway(
+        process.env.API_GATEWAY_URL
+      )
+    ]);
+
+    const health = {
+
+      api: {
+        status: "UP"
+      },
+
+      dynamodb: dynamodbStatus,
+
+      s3: s3Status,
+
+      lambdas: {
+
+        preparacao:
+          lambdaPreparacao,
+
+        envio:
+          lambdaEnvio,
+
+        envioFinal:
+          lambdaEnvioFinal,
+
+        confirmacao:
+          lambdaConfirmacao
+
+      },
+
+      apiGateway,
+
+      eventBridge,
+
+      timestamp:
+        new Date().toISOString()
+
+    };
+
+    const possuiErro = [
+
+      dynamodbStatus.status,
+      s3Status.status,
+      lambdaPreparacao.status,
+      lambdaEnvio.status,
+      lambdaEnvioFinal.status,
+      lambdaConfirmacao.status,
+      apiGateway.status,
+      eventBridge.status
+
+    ].includes("DOWN");
+
+    return res
+      .status(
+        possuiErro
+          ? 503
+          : 200
+      )
+      .json(health);
 
   } catch (error) {
 
-    res.status(500).json({
-      api: 'DOWN',
+    return res.status(500).json({
+      status: "DOWN",
       error: error.message
     });
 
   }
+
 });
 
 const PORT = process.env.PORT || 3000;
