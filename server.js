@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const swaggerUi = require('swagger-ui-express');
+const cors = require('cors'); // Importado aqui
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client, PutObjectCommand, GetObjectCommand, ListBucketsCommand, ListObjectsV2Command, HeadObjectCommand } = require('@aws-sdk/client-s3');
@@ -10,17 +11,19 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { gerarNotaFiscal } = require('./services/pdfService');
 
 const app = express();
-const cors = require('cors');
+app.use(cors());
+app.use(express.json());
+
 const upload = multer({ storage: multer.memoryStorage() });
 
-const dynamoClient = new DynamoDBClient({ 
-  region: process.env.AWS_REGION 
+const dynamoClient = new DynamoDBClient({
+  region: process.env.AWS_REGION
 });
 
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const s3Client = new S3Client({ 
-  region: process.env.AWS_REGION 
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION
 });
 
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
