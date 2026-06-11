@@ -43,6 +43,11 @@ const s3Client = new S3Client({
   region: process.env.AWS_REGION
 });
 
+const schedulerClient = new SchedulerClient({
+  region: process.env.AWS_REGION || "us-east-1"
+});
+
+
 const lambdaClient =
   new LambdaClient({
     region: process.env.AWS_REGION
@@ -82,25 +87,18 @@ const eventBridgeClient =
 
 }
 
-async function checkEventBridge(
-  scheduleName
-) {
+async function checkEventBridge(scheduleName) {
+
   try {
 
-    const result =
-      await schedulerClient.send(
-        new GetScheduleCommand({
-          Name: scheduleName
-        })
-      );
+    await schedulerClient.send(
+      new GetScheduleCommand({
+        Name: scheduleName
+      })
+    );
 
     return {
-      status: result.State === "ENABLED"
-        ? "UP"
-        : "DOWN",
-      state: result.State,
-      target:
-        result.Target?.Arn
+      status: "UP"
     };
 
   } catch (error) {
@@ -111,6 +109,7 @@ async function checkEventBridge(
     };
 
   }
+
 }
 
 function checkApiGateway(url) {
