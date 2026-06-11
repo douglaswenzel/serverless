@@ -914,12 +914,8 @@ app.get("/health", async (req, res) => {
 
     try {
 
-      await s3.send(
-        new ListObjectsV2Command({
-          Bucket:
-            process.env.S3_BUCKET_NAME,
-          MaxKeys: 1
-        })
+      await s3Client.send(
+        new ListBucketsCommand({})
       );
 
     } catch (error) {
