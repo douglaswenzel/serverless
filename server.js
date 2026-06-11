@@ -15,10 +15,15 @@ const {
 } = require("@aws-sdk/client-lambda");
 
 const {
-  EventBridgeClient,
-  DescribeRuleCommand
-} = require("@aws-sdk/client-eventbridge");
+  SchedulerClient,
+  GetScheduleCommand
+} = require("@aws-sdk/client-scheduler");
 
+
+const {
+  SchedulerClient,
+  GetScheduleCommand
+} = require("@aws-sdk/client-scheduler");
 const https = require("https");
   
 
@@ -42,6 +47,10 @@ const lambdaClient =
   new LambdaClient({
     region: process.env.AWS_REGION
   });
+
+const scheduler = new SchedulerClient({
+  region: process.env.AWS_REGION
+});
 
 const eventBridgeClient =
   new EventBridgeClient({
@@ -73,18 +82,25 @@ const eventBridgeClient =
 
 }
 
-async function checkEventBridge(ruleName) {
-
+async function checkEventBridge(
+  scheduleName
+) {
   try {
 
-    await eventBridgeClient.send(
-      new DescribeRuleCommand({
-        Name: ruleName
-      })
-    );
+    const result =
+      await schedulerClient.send(
+        new GetScheduleCommand({
+          Name: scheduleName
+        })
+      );
 
     return {
-      status: "UP"
+      status: result.State === "ENABLED"
+        ? "UP"
+        : "DOWN",
+      state: result.State,
+      target:
+        result.Target?.Arn
     };
 
   } catch (error) {
@@ -95,7 +111,6 @@ async function checkEventBridge(ruleName) {
     };
 
   }
-
 }
 
 function checkApiGateway(url) {
