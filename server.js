@@ -19,6 +19,11 @@ const {
   GetScheduleCommand
 } = require("@aws-sdk/client-scheduler");
 
+const {
+  EventBridgeClient,
+  DescribeRuleCommand
+} = require("@aws-sdk/client-eventbridge");
+
 const https = require("https");
   
 
