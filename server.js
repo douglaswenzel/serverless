@@ -19,11 +19,6 @@ const {
   GetScheduleCommand
 } = require("@aws-sdk/client-scheduler");
 
-
-const {
-  SchedulerClient,
-  GetScheduleCommand
-} = require("@aws-sdk/client-scheduler");
 const https = require("https");
   
 
